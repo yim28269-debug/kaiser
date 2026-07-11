@@ -1,72 +1,85 @@
 import streamlit as st
 import pandas as pd
 
-# 페이지 설정
+# 1. 페이지 설정
 st.set_page_config(
-    page_title="지구촌 MBTI 분석",
-    page_icon="🌍",
-    layout="centered"
+    page_title="K-POP 아이돌 데이터 센터",
+    page_icon="🎤",
+    layout="wide" # 분석 대시보드이므로 넓은 화면 레이아웃 사용
 )
 
-# 타이틀 및 소개
-st.title("🌍 나라별 MBTI 성향 & 비율 분석")
-st.write("세계 여러 나라의 문화적 특성과 통계적 MBTI 경향을 살펴보는 공간입니다.")
+# 데이터 불러오기 (샘플 데이터 구성)
+@st.cache_data
+def load_data():
+    # 실제 프로젝트 시 이 부분을 데이터베이스나 CSV 파일 로드로 변경할 수 있습니다.
+    data = {
+        "그룹명": ["뉴진스", "아이브", "에스파", "세븐틴", "라이즈", "투어스", "르세라핌", "스트레이 키즈"],
+        "소속사": ["HYBE (어도어)", "스타쉽", "SM", "HYBE (플레디스)", "SM", "HYBE (플레디스)", "HYBE (쏘스)", "JYP"],
+        "멤버수": [5, 6, 4, 13, 6, 6, 5, 8],
+        "데뷔년도": [2022, 2021, 2020, 2015, 2023, 2024, 2022, 2018],
+        "대표곡": ["Ditto", "I AM", "Supernova", "Super Shy", "Get A Guitar", "첫 만남은 계획대로 되지 않아", "EASY", "Chk Chk Boom"]
+    }
+    df = pd.DataFrame(data)
+    # 2026년 기준으로 연차 계산
+    df["연차 (2026년 기준)"] = 2026 - df["데뷔년도"] + 1
+    return df
+
+df = load_data()
+
+# 2. 타이틀 영역
+st.title("🎤 K-POP 아이돌 검색 및 분석 대시보드")
+st.write("원하는 아이돌을 검색하고 소속사별, 연차별 데이터를 한눈에 분석해 보세요.")
 
 st.divider()
 
-# 1. 국가별 가상 MBTI 통계 데이터 (pandas 데이터프레임 활용)
-st.subheader("📊 주요 국가별 MBTI 최다 비율 순위")
-st.caption("※ 일반적인 글로벌 통계 자료를 바탕으로 재구성한 데이터입니다.")
+# 3. 사이드바 - 필터링 기능
+st.sidebar.header("🔍 데이터 필터")
 
-# 데이터 생성
-mbti_data = {
-    "국가": ["대한민국 (Korea)", "미국 (USA)", "일본 (Japan)", "독일 (Germany)", "브라질 (Brazil)"],
-    "가장 많은 MBTI": ["INFP / INFJ", "ESTJ / ESFP", "ISFJ", "ISTJ", "ENFP / ESFP"],
-    "문화적 성향 핵심 키워드": ["트렌드 민감, 관계 중심", "개인주의, 실용주의", "조화와 배려, 매너", "원칙주의, 체계적 시스템", "열정, 사교성, 축제"]
-}
-df = pd.DataFrame(mbti_data)
+# 소속사 필터
+companies = ["전체"] + list(df["소속사"].unique())
+selected_company = st.sidebar.selectbox("소속사를 선택하세요", companies)
 
-# 스트림릿 테이블로 보기 좋게 출력
-st.table(df)
+# 검색창
+search_query = st.sidebar.text_input("아이돌 그룹명 검색", "")
 
-st.divider()
+# 데이터 필터링 적용
+filtered_df = df.copy()
+if selected_company != "전체":
+    filtered_df = filtered_df[filtered_df["소속사"] == selected_company]
+if search_query:
+    filtered_df = filtered_df[filtered_df["그룹명"].str.contains(search_query, case=False)]
 
-# 2. 국가 선택 상세 분석 (인터랙체 위젯)
-st.subheader("🔍 국가별 깊이 알아보기")
-selected_country = st.selectbox(
-    "궁금한 국가를 선택하세요:",
-    ["대한민국", "미국", "일본", "독일"]
-)
+# 4. 메인 화면 - 통계 요약 (Metrics)
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("총 등록 그룹 수", f"{len(filtered_df)} 개")
+with col2:
+    st.metric("평균 멤버 수", f"{filtered_df['멤버수'].mean():.1f} 명")
+with col3:
+    st.metric("평균 연차", f"{filtered_df['연차 (2026년 기준)'].mean():.1f} 년차")
 
-# 선택된 국가에 따른 동적 콘텐츠 출력
-if selected_country == "대한민국":
-    st.markdown("### 🇰🇷 대한민국")
-    st.write("**특징:** 전 세계에서 MBTI에 대한 관심도가 가장 높은 나라 중 하나입니다.")
-    st.info("최근 통계에 따르면 전통적인 유교 문화의 영향으로 내향적 배려(I)와 계획성(J)이 높게 나타나기도 하지만, 젊은 층을 중심으로 개성 넘치는 N(직관형) 성향의 비율도 급격히 주목받고 있습니다.")
+st.write("")
 
-elif selected_country == "미국":
-    st.markdown("### 🇺🇸 미국")
-    st.write("**특징:** 개척 정신과 실용주의가 강한 문화적 배경을 가지고 있습니다.")
-    st.info("외향형(E)과 사고형(T)의 비율이 상대적으로 높게 나타나며, 스타트업이나 도전적인 문화에서는 ENTJ나 ENFP 같은 유형이 활발하게 활약하는 경향이 있습니다.")
-
-elif selected_country == "일본":
-    st.markdown("### 🇯🇵 일본")
-    st.write("**특징:** 타인에게 피해를 주지 않으려는 '메이와쿠(迷惑)' 문화가 깊게 자리 잡고 있습니다.")
-    st.info("전반적으로 내향 감정(I)과 수호자 성향인 ISFJ 유형이 다수를 차지하는 편이며, 공동체의 평화와 규칙을 중시하는 J(판단형) 성향이 강하게 나타납니다.")
-
-elif selected_country == "독일":
-    st.markdown("### 🇩🇪 독일")
-    st.write("**특징:** 철저한 규칙과 시간 엄수, 장인 정신으로 유명한 국가입니다.")
-    st.info("통계적으로 ISTJ(청렴결백한 논리주의자) 성향과 가장 잘 부합하는 문화를 가졌다고 평가받으며, 감정보다는 논리(T)와 계획(J)을 기반으로 안정적인 사회 시스템을 선호합니다.")
+# 5. 데이터 표 출력
+st.subheader("📋 아이돌 리스트")
+st.dataframe(filtered_df, use_container_width=True)
 
 st.divider()
 
-# 3. 간단한 MBTI 매칭 퀴즈나 팁
-st.subheader("💡 재미로 보는 팁")
-with st.expander("내 MBTI와 어울리는 여행지는?"):
-    st.write("- **ENFP / ESFP (자유로운 영혼):** 축제와 열정이 가득한 **브라질**")
-    st.write("- **ISTJ / INTJ (철저한 계획파):** 기차 시간표가 칼같이 맞는 **독일**")
-    st.write("- **INFP / INFJ (감성 충만 사색가):** 아기자기한 골목과 힐링이 있는 **일본**")
+# 6. 간단한 분석 차트 데이터 시각화
+st.subheader("📊 차트 분석")
+
+chart_col1, chart_col2 = st.columns(2)
+
+with chart_col1:
+    st.markdown("##### 📈 그룹별 멤버 수 비교")
+    # 바 차트 시각화
+    st.bar_chart(data=filtered_df, x="그룹명", y="멤버수", color="#ff4b4b")
+
+with chart_col2:
+    st.markdown("##### ⏳ 그룹별 연차 현황")
+    # 선 차트 시각화
+    st.line_chart(data=filtered_df, x="그룹명", y="연차 (2026년 기준)", color="#29b5e8")
 
 st.divider()
-st.caption("© 2026 Global MBTI Analytics App.")
+st.caption("© 2026 K-POP Idol Data Analytics App. Powered by Streamlit.")
